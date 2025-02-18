@@ -7,8 +7,13 @@ on:
 
 jobs:
   # checkout repo ----> login in to ghcr ---> build our dockerfile ---> push it to ghcr     
-  build:
+  build_and_push:
+     name: Build image and push
      runs-on: ubuntu-24.04
+     permissions:
+       contents: read
+       packages: write
+
      steps:
 
       - name: Checkout code
