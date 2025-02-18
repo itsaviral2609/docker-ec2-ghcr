@@ -60,6 +60,8 @@ jobs:
             # Restart Docker service to ensure it is running
             sudo systemctl restart docker
 
+            sudo chmod 666 /var/run/docker.sock
+
             # Ensure the user has permission to run Docker commands
             newgrp docker || true
 
