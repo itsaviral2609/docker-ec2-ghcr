@@ -22,7 +22,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Building our flask application Dockerfile
-        run: docker build -t ghcr.io/${{ github.reposiory_owner }}/flask-image:latest
+        run: docker build -t ghcr.io/${{ github.reposiory_owner }}/flask-image:latest .
 
       - name: Pushing flask application to Ghcr
         run: docker push ghcr.io/${{ github.repository_owner }}/flask-image:latest
