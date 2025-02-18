@@ -31,3 +31,28 @@ jobs:
 
       - name: Pushing flask application to Ghcr
         run: docker push ghcr.io/${{ github.repository_owner }}/flask-image:latest
+
+
+  deploy:
+    name: Deploy on EC2 instance
+    runs-on: ubuntu-22.04
+    needs: build_and_push
+
+    steps:
+      - name: SSH into EC2 and Deploy
+        uses: appleboy/ssh-action@v0.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            #
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker pull ghcr.io/${{ github.repository_owner }}/flask-image:latest
+
+            # Stop and remove existing container
+            docker stop flask-app || true
+            docker rm flask-app || true
+
+            # Run the new container
+            docker run -d -p 5000:5000 --name flask-app ghcr.io/${{ github.repository_owner }}/flask-image:latest
