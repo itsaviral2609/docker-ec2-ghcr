@@ -1,4 +1,4 @@
-name: Flask application deployment on EC2 and publish to Ghcr
+name: Flask application deployment on EC2 and publish to GHCR
 
 on:
   push:
@@ -6,36 +6,35 @@ on:
       - main
 
 jobs:
-  # checkout repo ----> login in to ghcr ---> build our dockerfile ---> push it to ghcr     
+  # Step 1: Build and push the Docker image to GHCR
   build_and_push:
-     name: Build image and push
-     runs-on: ubuntu-24.04
-     permissions:
-       contents: read
-       packages: write
+    name: Build image and push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-     steps:
-
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to GitHub container registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Building our flask application Dockerfile
+      - name: Building Flask application Dockerfile
         run: docker build -t ghcr.io/${{ github.repository_owner }}/flask-image:latest .
 
-      - name: Pushing flask application to Ghcr
+      - name: Pushing Flask application to GHCR
         run: docker push ghcr.io/${{ github.repository_owner }}/flask-image:latest
 
-
+  # Step 2: Deploy on EC2
   deploy:
     name: Deploy on EC2 instance
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: build_and_push
 
     steps:
@@ -46,11 +45,31 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            #
-            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            # Update package list
+            sudo apt update
+
+            # Install Docker if not already installed
+            if ! command -v docker &> /dev/null
+            then
+                sudo apt install -y docker.io
+                sudo systemctl start docker
+                sudo systemctl enable docker
+                sudo usermod -aG docker $USER
+            fi
+
+            # Restart Docker service to ensure it is running
+            sudo systemctl restart docker
+
+            # Ensure the user has permission to run Docker commands
+            newgrp docker || true
+
+            # Log in to GHCR inside EC2 instance
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull the latest image
             docker pull ghcr.io/${{ github.repository_owner }}/flask-image:latest
 
-            # Stop and remove existing container
+            # Stop and remove existing container (if running)
             docker stop flask-app || true
             docker rm flask-app || true
 
